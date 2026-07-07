@@ -6,6 +6,8 @@ Pocket Flight is a small static web app for planning holiday ideas on an interac
 
 https://patriciahuang99.github.io/pocket-flight/
 
+![Pocket Flight screenshot](assets/pocket-flight-screenshot.png)
+
 ## Features
 
 - Interactive world map with clickable city pins
