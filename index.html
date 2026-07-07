@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pocket Flight - Holiday Planner</title>
+  <meta name="description" content="Pocket Flight holiday wishlist map for planned cities, events, visit months, and saved links.">
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #060a14;
+      --card: #0c1424;
+      --card2: #111c33;
+      --line: rgba(148, 178, 255, .12);
+      --ink: #eef3ff;
+      --ink2: #a4b4d4;
+      --muted: #69799f;
+      --accent: #45b8ff;
+      --accent2: #ffc257;
+      --land: #1a2a49;
+      --ctrl: rgba(12, 20, 36, .92);
+      --hover: rgba(148, 178, 255, .06);
+      --glow: rgba(48, 90, 180, .16);
+      --radius: 14px;
+    }
+
+    :root[data-theme="light"] {
+      color-scheme: light;
+      --bg: #edf1f8;
+      --card: #fff;
+      --card2: #f2f5fb;
+      --line: rgba(22, 42, 90, .12);
+      --ink: #16233c;
+      --ink2: #44536f;
+      --muted: #7b87a0;
+      --accent: #0b6fd0;
+      --accent2: #d98700;
+      --land: #ccd8ea;
+      --ctrl: rgba(255, 255, 255, .94);
+      --hover: rgba(22, 62, 140, .06);
+      --glow: rgba(90, 140, 220, .12);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      background-image: radial-gradient(1200px 500px at 50% -10%, var(--glow), transparent 70%);
+      color: var(--ink);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.5;
+    }
+
+    button, input { font: inherit; }
+    .wrap { max-width: 1080px; margin: 0 auto; padding: 20px 16px 60px; }
+    .topbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      align-items: center;
+      justify-content: space-between;
+      margin: 6px 0 18px;
+    }
+    h1 { margin: 0; font-size: clamp(22px, 4vw, 30px); letter-spacing: .2px; }
+    #status { margin: 2px 0 0; color: var(--ink2); font-size: 13px; overflow-wrap: anywhere; }
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    .icon-btn, .upload {
+      border: 1px solid var(--line);
+      background: transparent;
+      color: var(--ink2);
+      cursor: pointer;
+      border-radius: 10px;
+      height: 38px;
+      transition: border-color .15s, color .15s, background .15s;
+    }
+    .icon-btn { width: 38px; display: inline-grid; place-items: center; }
+    .upload {
+      border-style: dashed;
+      border-color: rgba(105, 150, 255, .45);
+      background: rgba(69, 184, 255, .05);
+      padding: 0 16px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 650;
+    }
+    button:hover, button:focus-visible {
+      border-color: var(--accent);
+      color: var(--accent);
+      outline: 0;
+    }
+    svg.ico { width: 18px; height: 18px; fill: currentColor; }
+    .native-file { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+    .format-label { color: var(--muted); font-size: 12px; }
+
+    .help-line, .file-line {
+      color: var(--muted);
+      font-size: 12px;
+      margin: -6px 0 12px;
+      overflow-wrap: anywhere;
+    }
+    .file-line { color: var(--ink2); font-size: 13px; margin-top: -4px; }
+    .file-line b { color: var(--ink); }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 18px;
+      margin-bottom: 16px;
+    }
+    .card h2 {
+      color: var(--ink2);
+      font-size: 14px;
+      letter-spacing: .4px;
+      margin: 0 0 14px;
+      font-weight: 650;
+    }
+
+    .map-card { padding: 8px; position: relative; overflow: hidden; }
+    #map { display: block; width: 100%; height: auto; }
+    .land { fill: var(--land); }
+    .pin-hit { fill: transparent; cursor: pointer; }
+    .pin-dot { fill: var(--accent2); stroke: var(--card); stroke-width: 1.5; cursor: pointer; filter: drop-shadow(0 0 8px rgba(255, 194, 87, .55)); }
+    .pin-ring { fill: none; stroke: var(--accent2); stroke-width: 1.4; opacity: .45; pointer-events: none; }
+    .pin-label { fill: var(--ink); font-size: 11px; font-weight: 700; paint-order: stroke; stroke: var(--bg); stroke-width: 3px; pointer-events: none; }
+
+    .map-note {
+      position: absolute;
+      left: 14px;
+      bottom: 10px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+    .popup {
+      position: absolute;
+      min-width: 240px;
+      max-width: min(360px, calc(100% - 28px));
+      background: var(--ctrl);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px 14px;
+      box-shadow: 0 14px 36px rgba(0, 0, 0, .35);
+      z-index: 4;
+    }
+    .popup[hidden] { display: none; }
+    .popup-img {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      object-fit: cover;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      margin-bottom: 10px;
+      background: var(--card2);
+    }
+    .popup h3 { margin: 0 26px 8px 0; font-size: 16px; }
+    .popup dl { margin: 0; display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 5px 10px; font-size: 13px; }
+    .popup dt { color: var(--muted); }
+    .popup dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+    .popup a { color: var(--accent); text-decoration: none; }
+    .popup a:hover { text-decoration: underline; }
+    .popup-close {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 24px;
+      height: 24px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: transparent;
+      color: var(--ink2);
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 16px; }
+    .tile {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      min-width: 0;
+    }
+    .tile .label { color: var(--muted); font-size: 12px; }
+    .tile .value { font-weight: 700; font-size: clamp(21px, 2.6vw, 30px); line-height: 1.25; margin-top: 2px; overflow-wrap: anywhere; }
+    .tile.hero { background: linear-gradient(135deg, rgba(69, 184, 255, .14), rgba(69, 184, 255, .03) 55%), var(--card); }
+    .tile.hero .value { color: var(--accent); }
+
+    .wish-row {
+      display: grid;
+      grid-template-columns: minmax(110px, 1fr) minmax(130px, 1.3fr) 100px minmax(120px, 1.2fr);
+      gap: 10px;
+      align-items: center;
+      padding: 9px 6px;
+      border-bottom: 1px solid var(--line);
+      font-size: 13.5px;
+    }
+    .wish-row:last-child { border-bottom: 0; }
+    .wish-row:hover { background: var(--hover); }
+    .wish-city { color: var(--accent); font-weight: 700; }
+    .wish-month { color: var(--ink2); }
+    .wish-links a { color: var(--accent); text-decoration: none; }
+    .wish-links a:hover { text-decoration: underline; }
+    .empty { color: var(--muted); font-size: 13px; }
+
+    #error {
+      display: none;
+      background: rgba(255, 107, 107, .09);
+      border: 1px solid rgba(255, 107, 107, .35);
+      color: #ff7b7b;
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      font-size: 13px;
+      margin-bottom: 16px;
+    }
+
+    @media (max-width: 720px) {
+      .topbar { flex-direction: column; align-items: stretch; }
+      .actions { justify-content: space-between; }
+      .map-note { position: static; padding: 0 8px 6px; }
+      .wish-row { grid-template-columns: 1fr; gap: 2px; background: var(--card2); border: 0; border-radius: 12px; margin-bottom: 8px; padding: 11px 13px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="topbar">
+      <div>
+        <h1>Pocket Flight</h1>
+        <p id="status"></p>
+      </div>
+      <div class="actions">
+        <button class="icon-btn" id="theme" type="button" aria-label="Toggle theme"></button>
+        <button class="upload" type="button" onclick="openFilePicker()">
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16h6v-6h4l-7-7-7 7h4v6Zm-4 2h14v2H5v-2Z"/></svg>
+          Upload wishlist
+        </button>
+        <span class="format-label">CSV or text export</span>
+        <input id="fileInput" class="native-file" type="file" accept=".csv,text/csv,text/plain" onchange="handleWishlistFile(this.files[0]); this.value = ''">
+      </div>
+    </header>
+
+    <div id="error"></div>
+    <p class="help-line">Columns: city, event, month, link. Optional: image, lat, lon. Multiple links can be separated with semicolons.</p>
+    <p id="currentFile" class="file-line">Current file: <b>built-in holiday sample</b></p>
+
+    <section class="card map-card">
+      <svg id="map" viewBox="0 30 1000 382" role="img" aria-label="Holiday wishlist map">
+        <g id="mapViewport"></g>
+      </svg>
+      <div class="map-note">Click a city point to see the event, month, and saved links.</div>
+      <div id="popup" class="popup" hidden></div>
+    </section>
+
+    <main id="dash"></main>
+  </div>
+
+  <script>
+    (function () {
+      var NS = "http://www.w3.org/2000/svg";
+      var landPaths = [];
+      var currentFileName = "built-in holiday sample";
+      var wishes = [
+        { city: "Kyoto", event: "Philosopher's Path and quiet temple gardens", month: "April", link: "https://www.japan.travel/en/destinations/kansai/kyoto/", image: "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=900&q=80" },
+        { city: "Matera", event: "Cave streets, sunset viewpoints, and old town stays", month: "May", link: "https://www.italia.it/en/basilicata/matera", image: "https://images.unsplash.com/photo-1523906834658-6e24ef2386f9?auto=format&fit=crop&w=900&q=80" },
+        { city: "Gjirokaster", event: "Stone-house lanes and Ottoman hilltop castle", month: "September", link: "https://albania.al/destinations/gjirokastra/", image: "https://images.unsplash.com/photo-1596464716127-f2a82984de30?auto=format&fit=crop&w=900&q=80" },
+        { city: "Chefchaouen", event: "Blue alleys, mountain views, and slow cafes", month: "March", link: "https://www.visitmorocco.com/en/travel/chefchaouen", image: "https://images.unsplash.com/photo-1548018560-c7196548e84d?auto=format&fit=crop&w=900&q=80" },
+        { city: "Luang Prabang", event: "Waterfalls, night market, and riverside temples", month: "November", link: "https://www.tourismlaos.org/", image: "https://images.unsplash.com/photo-1562523011-0f8f7d09f654?auto=format&fit=crop&w=900&q=80" },
+        { city: "Tbilisi", event: "Sulfur baths, wine bars, and old balconies", month: "October", link: "https://georgia.travel/destinations/tbilisi", image: "https://images.unsplash.com/photo-1565008576549-57569a49371d?auto=format&fit=crop&w=900&q=80" },
+        { city: "Valparaiso", event: "Street-art hills and coastal funiculars", month: "January", link: "https://www.chile.travel/en/where-to-go/central-chile/valparaiso/", image: "https://images.unsplash.com/photo-1581373449483-37449f962b6c?auto=format&fit=crop&w=900&q=80" },
+        { city: "Reykjavik", event: "Northern lights road trip and hidden hot pools", month: "February", link: "https://www.visitreykjavik.is/", image: "https://images.unsplash.com/photo-1504829857797-ddff29c27927?auto=format&fit=crop&w=900&q=80" }
+      ];
+      var CITY_COORDS = {
+        amsterdam: [52.3676, 4.9041], barcelona: [41.3874, 2.1686], kyoto: [35.0116, 135.7681],
+        reykjavik: [64.1466, -21.9426], seoul: [37.5665, 126.9780], taipei: [25.0330, 121.5654],
+        matera: [40.6664, 16.6043], gjirokaster: [40.0758, 20.1389], chefchaouen: [35.1714, -5.2697],
+        "luang prabang": [19.8834, 102.1347], luangprabang: [19.8834, 102.1347],
+        tbilisi: [41.7151, 44.8271], valparaiso: [-33.0472, -71.6127],
+        tokyo: [35.6762, 139.6503], osaka: [34.6937, 135.5023], paris: [48.8566, 2.3522],
+        london: [51.5072, -0.1276], rome: [41.9028, 12.4964], lisbon: [38.7223, -9.1393],
+        bangkok: [13.7563, 100.5018], singapore: [1.3521, 103.8198], hongkong: [22.3193, 114.1694],
+        "hong kong": [22.3193, 114.1694], sydney: [-33.8688, 151.2093], melbourne: [-37.8136, 144.9631],
+        vancouver: [49.2827, -123.1207], seattle: [47.6061, -122.3328], "new york": [40.7128, -74.0060],
+        losangeles: [34.0522, -118.2437], "los angeles": [34.0522, -118.2437], sanfrancisco: [37.7749, -122.4194],
+        "san francisco": [37.7749, -122.4194], dubai: [25.2048, 55.2708], istanbul: [41.0082, 28.9784]
+      };
+
+      function el(id) { return document.getElementById(id); }
+      function escapeHtml(text) {
+        return String(text == null ? "" : text).replace(/[&<>"']/g, function (ch) {
+          return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch];
+        });
+      }
+      function normalizeCity(city) { return String(city || "").trim().toLowerCase().replace(/[-_]/g, " ").replace(/\s+/g, " "); }
+      function coordFor(item) {
+        if (isFinite(Number(item.lat)) && isFinite(Number(item.lon))) return [Number(item.lat), Number(item.lon)];
+        var key = normalizeCity(item.city);
+        return CITY_COORDS[key] || CITY_COORDS[key.replace(/\s/g, "")] || null;
+      }
+      function projectLonLat(lon, lat) { return [(lon + 180) / 360 * 1000, 30 + (90 - lat) / 180 * 382]; }
+      function itemPoint(item) {
+        var c = coordFor(item);
+        return c ? projectLonLat(c[1], c[0]) : null;
+      }
+      function ringPath(ring) {
+        var d = "";
+        for (var i = 0; i < ring.length; i++) {
+          var p = projectLonLat(ring[i][0], ring[i][1]);
+          d += (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1);
+        }
+        return d + "Z";
+      }
+      function featurePath(feature) {
+        var geom = feature && feature.geometry;
+        var d = "";
+        if (!geom) return d;
+        if (geom.type === "Polygon") {
+          for (var i = 0; i < geom.coordinates.length; i++) d += ringPath(geom.coordinates[i]);
+        } else if (geom.type === "MultiPolygon") {
+          for (var p = 0; p < geom.coordinates.length; p++) {
+            for (var r = 0; r < geom.coordinates[p].length; r++) d += ringPath(geom.coordinates[p][r]);
+          }
+        }
+        return d;
+      }
+      function splitCsvLine(line) {
+        var out = [], cur = "", quote = false;
+        for (var i = 0; i < line.length; i++) {
+          var ch = line[i];
+          if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+          else if (ch === '"') quote = !quote;
+          else if (ch === "," && !quote) { out.push(cur.trim()); cur = ""; }
+          else cur += ch;
+        }
+        out.push(cur.trim());
+        return out;
+      }
+      function parseWishlist(text) {
+        var lines = String(text || "").replace(/^\uFEFF/, "").split(/\r?\n/).filter(function (line) { return line.trim(); });
+        if (!lines.length) return [];
+        var header = splitCsvLine(lines.shift()).map(function (h) { return h.toLowerCase().trim(); });
+        function value(row, names) {
+          for (var n = 0; n < names.length; n++) {
+            for (var h = 0; h < header.length; h++) {
+              if (header[h] === names[n] || header[h].indexOf(names[n]) >= 0) return (row[h] || "").replace(/^"|"$/g, "").trim();
+            }
+          }
+          return "";
+        }
+        var out = [];
+        for (var i = 0; i < lines.length; i++) {
+          var row = splitCsvLine(lines[i]);
+          var item = {
+            city: value(row, ["city", "location", "place"]),
+            event: value(row, ["event", "what", "activity", "plan"]),
+            month: value(row, ["month", "visit", "when"]),
+            link: value(row, ["link", "url"]),
+            image: value(row, ["image", "photo", "picture"]),
+            lat: value(row, ["lat", "latitude"]),
+            lon: value(row, ["lon", "lng", "longitude"])
+          };
+          if (item.city) out.push(item);
+        }
+        return out;
+      }
+      function linksHtml(item) {
+        var raw = String(item.link || "").split(";").map(function (x) { return x.trim(); }).filter(Boolean);
+        if (!raw.length) return '<span class="empty">No link saved</span>';
+        return raw.map(function (href, i) {
+          var safe = escapeHtml(href);
+          return '<a href="' + safe + '" target="_blank" rel="noreferrer">Link ' + (i + 1) + '</a>';
+        }).join(" · ");
+      }
+      function imageHtml(item) {
+        if (!item.image) return "";
+        return '<img class="popup-img" src="' + escapeHtml(item.image) + '" alt="' + escapeHtml(item.city) + ' preview" loading="lazy">';
+      }
+      function renderMap() {
+        var html = "";
+        for (var i = 0; i < landPaths.length; i++) html += '<path class="land" d="' + landPaths[i] + '"></path>';
+        for (i = 0; i < wishes.length; i++) {
+          var p = itemPoint(wishes[i]);
+          if (!p) continue;
+          html += '<g class="pin" data-index="' + i + '">';
+          html += '<circle class="pin-ring" cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="10"></circle>';
+          html += '<circle class="pin-dot" cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="5"></circle>';
+          html += '<circle class="pin-hit" cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="14"></circle>';
+          html += '<text class="pin-label" x="' + (p[0] + 8).toFixed(1) + '" y="' + (p[1] - 8).toFixed(1) + '">' + escapeHtml(wishes[i].city) + '</text>';
+          html += '</g>';
+        }
+        el("mapViewport").innerHTML = html;
+        var pins = document.querySelectorAll(".pin");
+        for (i = 0; i < pins.length; i++) {
+          pins[i].addEventListener("click", function () { showPopup(Number(this.getAttribute("data-index"))); });
+        }
+      }
+      function showPopup(index) {
+        var item = wishes[index];
+        var point = itemPoint(item);
+        if (!item || !point) return;
+        var popup = el("popup");
+        popup.innerHTML = '<button class="popup-close" type="button" onclick="closePopup()">x</button>' +
+          imageHtml(item) +
+          '<h3>' + escapeHtml(item.city) + '</h3>' +
+          '<dl><dt>Event</dt><dd>' + escapeHtml(item.event || "No event yet") + '</dd>' +
+          '<dt>Month</dt><dd>' + escapeHtml(item.month || "Not set") + '</dd>' +
+          '<dt>Links</dt><dd>' + linksHtml(item) + '</dd></dl>';
+        popup.hidden = false;
+        var mapRect = el("map").getBoundingClientRect();
+        var cardRect = el("map").parentElement.getBoundingClientRect();
+        var left = (point[0] / 1000) * mapRect.width + (mapRect.left - cardRect.left) + 14;
+        var top = ((point[1] - 30) / 382) * mapRect.height + (mapRect.top - cardRect.top) - 24;
+        popup.style.left = Math.max(8, Math.min(left, cardRect.width - 370)) + "px";
+        popup.style.top = Math.max(8, top) + "px";
+      }
+      window.closePopup = function () { el("popup").hidden = true; };
+      function renderDash() {
+        var mapped = 0, months = {}, html = "";
+        for (var i = 0; i < wishes.length; i++) {
+          if (itemPoint(wishes[i])) mapped++;
+          if (wishes[i].month) months[wishes[i].month] = true;
+          html += '<div class="wish-row"><span class="wish-city">' + escapeHtml(wishes[i].city) + '</span>' +
+            '<span>' + escapeHtml(wishes[i].event || "") + '</span>' +
+            '<span class="wish-month">' + escapeHtml(wishes[i].month || "") + '</span>' +
+            '<span class="wish-links">' + linksHtml(wishes[i]) + '</span></div>';
+        }
+        el("status").textContent = wishes.length + " holiday ideas · " + mapped + " mapped";
+        el("currentFile").innerHTML = "Current file: <b>" + escapeHtml(currentFileName) + "</b>";
+        el("dash").innerHTML = '<section class="tiles">' +
+          tile("Cities", wishes.length, true) + tile("Mapped", mapped) + tile("Months", Object.keys(months).length) +
+          '</section><section class="card"><h2>Holiday Pocket List</h2>' + (html || '<p class="empty">Upload a wishlist CSV to start.</p>') + '</section>';
+      }
+      function tile(label, value, hero) {
+        return '<div class="tile ' + (hero ? 'hero' : '') + '"><div class="label">' + label + '</div><div class="value">' + value + '</div></div>';
+      }
+      function renderAll() { closePopup(); renderMap(); renderDash(); }
+      function loadWishlist(text, name) {
+        var parsed = parseWishlist(text);
+        if (!parsed.length) {
+          el("error").style.display = "block";
+          el("error").textContent = "Could not find rows with a city column.";
+          return;
+        }
+        el("error").style.display = "none";
+        currentFileName = name || "uploaded wishlist";
+        wishes = parsed;
+        renderAll();
+      }
+      window.openFilePicker = function () { el("fileInput").click(); };
+      window.handleWishlistFile = function (file) {
+        if (!file) return;
+        var reader = new FileReader();
+        reader.onload = function () { loadWishlist(String(reader.result || ""), file.name); };
+        reader.readAsText(file);
+      };
+      function loadMap() {
+        if (!window.fetch) { renderAll(); return; }
+        fetch("world-land-110m.geojson", { cache: "no-store" })
+          .then(function (res) { return res.ok ? res.json() : null; })
+          .then(function (geo) {
+            var features = geo && geo.features ? geo.features : [];
+            for (var i = 0; i < features.length; i++) {
+              var d = featurePath(features[i]);
+              if (d) landPaths.push(d);
+            }
+            renderAll();
+          })
+          .catch(renderAll);
+      }
+      el("theme").innerHTML = '<svg class="ico" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9c-1.8 1.6-4.4 2.2-6.8 1.4A7 7 0 0 1 9.6 4.8C10.3 4.1 11.1 3.5 12 3Z"/></svg>';
+      el("theme").onclick = function () {
+        document.documentElement.setAttribute("data-theme", document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light");
+      };
+      loadMap();
+    })();
+  </script>
+</body>
+</html>
