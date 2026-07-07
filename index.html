@@ -64,7 +64,7 @@
     h1 { margin: 0; font-size: clamp(22px, 4vw, 30px); letter-spacing: .2px; }
     #status { margin: 2px 0 0; color: var(--ink2); font-size: 13px; overflow-wrap: anywhere; }
     .actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
-    .icon-btn, .upload {
+    .icon-btn, .upload, .primary-btn, .ghost-btn {
       border: 1px solid var(--line);
       background: transparent;
       color: var(--ink2);
@@ -84,6 +84,29 @@
       gap: 8px;
       font-size: 13px;
       font-weight: 650;
+    }
+    .primary-btn, .ghost-btn {
+      padding: 0 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 650;
+    }
+    .primary-btn {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #07111f;
+    }
+    .primary-btn:hover, .primary-btn:focus-visible {
+      color: #07111f;
+      filter: brightness(1.06);
+    }
+    .ghost-btn { background: var(--card2); }
+    button:disabled {
+      cursor: wait;
+      opacity: .68;
     }
     button:hover, button:focus-visible {
       border-color: var(--accent);
@@ -116,6 +139,41 @@
       letter-spacing: .4px;
       margin: 0 0 14px;
       font-weight: 650;
+    }
+    .add-panel[hidden] { display: none; }
+    .add-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .field { min-width: 0; }
+    .field.full { grid-column: 1 / -1; }
+    .field label {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+    .field input {
+      width: 100%;
+      height: 40px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--card2);
+      color: var(--ink);
+      padding: 0 12px;
+      outline: 0;
+    }
+    .field input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(69, 184, 255, .12);
+    }
+    .form-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 14px;
     }
 
     .map-card { padding: 8px; position: relative; overflow: hidden; }
@@ -189,7 +247,7 @@
 
     .wish-row {
       display: grid;
-      grid-template-columns: minmax(110px, 1fr) minmax(130px, 1.3fr) 100px minmax(120px, 1.2fr);
+      grid-template-columns: minmax(110px, 1fr) minmax(130px, 1.3fr) 100px minmax(120px, 1.2fr) 42px;
       gap: 10px;
       align-items: center;
       padding: 9px 6px;
@@ -202,6 +260,23 @@
     .wish-month { color: var(--ink2); }
     .wish-links a { color: var(--accent); text-decoration: none; }
     .wish-links a:hover { text-decoration: underline; }
+    .delete-btn {
+      width: 34px;
+      height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      display: inline-grid;
+      place-items: center;
+      justify-self: end;
+    }
+    .delete-btn:hover, .delete-btn:focus-visible {
+      border-color: #ff7b7b;
+      color: #ff7b7b;
+      outline: 0;
+    }
     .empty { color: var(--muted); font-size: 13px; }
 
     #error {
@@ -218,6 +293,7 @@
     @media (max-width: 720px) {
       .topbar { flex-direction: column; align-items: stretch; }
       .actions { justify-content: space-between; }
+      .add-grid { grid-template-columns: 1fr; }
       .map-note { position: static; padding: 0 8px 6px; }
       .wish-row { grid-template-columns: 1fr; gap: 2px; background: var(--card2); border: 0; border-radius: 12px; margin-bottom: 8px; padding: 11px 13px; }
     }
@@ -232,6 +308,10 @@
       </div>
       <div class="actions">
         <button class="icon-btn" id="theme" type="button" aria-label="Toggle theme"></button>
+        <button class="primary-btn" id="showAdd" type="button" onclick="openAddForm()">
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z"/></svg>
+          Add destination
+        </button>
         <button class="upload" type="button" onclick="openFilePicker()">
           <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16h6v-6h4l-7-7-7 7h4v6Zm-4 2h14v2H5v-2Z"/></svg>
           Upload wishlist
@@ -242,8 +322,36 @@
     </header>
 
     <div id="error"></div>
-    <p class="help-line">Columns: city, event, month, link. Optional: image, lat, lon. Multiple links can be separated with semicolons.</p>
+    <p class="help-line">Columns: city, event, month, link. Optional: image, lat, lon. Multiple links can be separated with semicolons. Add destination can find a link and photo when links are blank.</p>
     <p id="currentFile" class="file-line">Current file: <b>built-in holiday sample</b></p>
+
+    <section class="card add-panel" id="addPanel" hidden>
+      <h2>Add Destination</h2>
+      <form id="addForm">
+        <div class="add-grid">
+          <div class="field">
+            <label for="addCity">City</label>
+            <input id="addCity" name="city" autocomplete="address-level2" required>
+          </div>
+          <div class="field">
+            <label for="addMonth">Travel month</label>
+            <input id="addMonth" name="month" autocomplete="off" placeholder="April">
+          </div>
+          <div class="field full">
+            <label for="addEvent">Event</label>
+            <input id="addEvent" name="event" autocomplete="off" required>
+          </div>
+          <div class="field full">
+            <label for="addLink">Links</label>
+            <input id="addLink" name="link" autocomplete="url" placeholder="Leave blank to find an official visitor site">
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="ghost-btn" type="button" onclick="closeAddForm()">Cancel</button>
+          <button class="primary-btn" id="addSubmit" type="submit">Create city</button>
+        </div>
+      </form>
+    </section>
 
     <section class="card map-card">
       <svg id="map" viewBox="0 30 1000 382" role="img" aria-label="Holiday wishlist map">
@@ -284,6 +392,43 @@
         vancouver: [49.2827, -123.1207], seattle: [47.6061, -122.3328], "new york": [40.7128, -74.0060],
         losangeles: [34.0522, -118.2437], "los angeles": [34.0522, -118.2437], sanfrancisco: [37.7749, -122.4194],
         "san francisco": [37.7749, -122.4194], dubai: [25.2048, 55.2708], istanbul: [41.0082, 28.9784]
+      };
+      var FALLBACK_IMAGE = "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=80";
+      var CITY_IMAGES = {
+        amsterdam: "https://images.unsplash.com/photo-1512470876302-972faa2aa9a4?auto=format&fit=crop&w=900&q=80",
+        barcelona: "https://images.unsplash.com/photo-1583422409516-2895a77efded?auto=format&fit=crop&w=900&q=80",
+        kyoto: "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=900&q=80",
+        reykjavik: "https://images.unsplash.com/photo-1504829857797-ddff29c27927?auto=format&fit=crop&w=900&q=80",
+        seoul: "https://images.unsplash.com/photo-1538485399081-7191377e8241?auto=format&fit=crop&w=900&q=80",
+        taipei: "https://images.unsplash.com/photo-1470004914212-05527e49370b?auto=format&fit=crop&w=900&q=80",
+        matera: "https://images.unsplash.com/photo-1523906834658-6e24ef2386f9?auto=format&fit=crop&w=900&q=80",
+        gjirokaster: "https://images.unsplash.com/photo-1596464716127-f2a82984de30?auto=format&fit=crop&w=900&q=80",
+        chefchaouen: "https://images.unsplash.com/photo-1548018560-c7196548e84d?auto=format&fit=crop&w=900&q=80",
+        "luang prabang": "https://images.unsplash.com/photo-1562523011-0f8f7d09f654?auto=format&fit=crop&w=900&q=80",
+        luangprabang: "https://images.unsplash.com/photo-1562523011-0f8f7d09f654?auto=format&fit=crop&w=900&q=80",
+        tbilisi: "https://images.unsplash.com/photo-1565008576549-57569a49371d?auto=format&fit=crop&w=900&q=80",
+        valparaiso: "https://images.unsplash.com/photo-1581373449483-37449f962b6c?auto=format&fit=crop&w=900&q=80",
+        tokyo: "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?auto=format&fit=crop&w=900&q=80",
+        osaka: "https://images.unsplash.com/photo-1590559899731-a382839e5549?auto=format&fit=crop&w=900&q=80",
+        paris: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=900&q=80",
+        london: "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?auto=format&fit=crop&w=900&q=80",
+        rome: "https://images.unsplash.com/photo-1529260830199-42c24126f198?auto=format&fit=crop&w=900&q=80",
+        lisbon: "https://images.unsplash.com/photo-1585208798174-6cedd86e019a?auto=format&fit=crop&w=900&q=80",
+        bangkok: "https://images.unsplash.com/photo-1508009603885-50cf7c579365?auto=format&fit=crop&w=900&q=80",
+        singapore: "https://images.unsplash.com/photo-1525625293386-3f8f99389edd?auto=format&fit=crop&w=900&q=80",
+        hongkong: "https://images.unsplash.com/photo-1536599018102-9f803c140fc1?auto=format&fit=crop&w=900&q=80",
+        "hong kong": "https://images.unsplash.com/photo-1536599018102-9f803c140fc1?auto=format&fit=crop&w=900&q=80",
+        sydney: "https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d9?auto=format&fit=crop&w=900&q=80",
+        melbourne: "https://images.unsplash.com/photo-1545044846-351ba102b6d5?auto=format&fit=crop&w=900&q=80",
+        vancouver: "https://images.unsplash.com/photo-1559511260-66a654ae982a?auto=format&fit=crop&w=900&q=80",
+        seattle: "https://images.unsplash.com/photo-1502175353174-a7a70e73b362?auto=format&fit=crop&w=900&q=80",
+        "new york": "https://images.unsplash.com/photo-1485871981521-5b1fd3805eee?auto=format&fit=crop&w=900&q=80",
+        losangeles: "https://images.unsplash.com/photo-1534190760961-74e8c1c5c3da?auto=format&fit=crop&w=900&q=80",
+        "los angeles": "https://images.unsplash.com/photo-1534190760961-74e8c1c5c3da?auto=format&fit=crop&w=900&q=80",
+        sanfrancisco: "https://images.unsplash.com/photo-1501594907352-04cda38ebc29?auto=format&fit=crop&w=900&q=80",
+        "san francisco": "https://images.unsplash.com/photo-1501594907352-04cda38ebc29?auto=format&fit=crop&w=900&q=80",
+        dubai: "https://images.unsplash.com/photo-1512453979798-5ea266f8880c?auto=format&fit=crop&w=900&q=80",
+        istanbul: "https://images.unsplash.com/photo-1524231757912-21f4fe3a7200?auto=format&fit=crop&w=900&q=80"
       };
 
       function el(id) { return document.getElementById(id); }
@@ -374,7 +519,7 @@
       }
       function imageHtml(item) {
         if (!item.image) return "";
-        return '<img class="popup-img" src="' + escapeHtml(item.image) + '" alt="' + escapeHtml(item.city) + ' preview" loading="lazy">';
+        return '<img class="popup-img" src="' + escapeHtml(item.image) + '" alt="' + escapeHtml(item.city) + ' preview" loading="lazy" onerror="this.onerror=null;this.src=\'' + FALLBACK_IMAGE + '\'">';
       }
       function renderMap() {
         var html = "";
@@ -423,7 +568,9 @@
           html += '<div class="wish-row"><span class="wish-city">' + escapeHtml(wishes[i].city) + '</span>' +
             '<span>' + escapeHtml(wishes[i].event || "") + '</span>' +
             '<span class="wish-month">' + escapeHtml(wishes[i].month || "") + '</span>' +
-            '<span class="wish-links">' + linksHtml(wishes[i]) + '</span></div>';
+            '<span class="wish-links">' + linksHtml(wishes[i]) + '</span>' +
+            '<button class="delete-btn" type="button" aria-label="Delete ' + escapeHtml(wishes[i].city) + '" onclick="deleteDestination(' + i + ')">' +
+            '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 21q-.8 0-1.4-.6T5 19V7H4V5h5V4h6v1h5v2h-1v12q0 .8-.6 1.4T17 21H7Zm2-4h2V9H9v8Zm4 0h2V9h-2v8Z"/></svg></button></div>';
         }
         el("status").textContent = wishes.length + " holiday ideas · " + mapped + " mapped";
         el("currentFile").innerHTML = "Current file: <b>" + escapeHtml(currentFileName) + "</b>";
@@ -438,16 +585,112 @@
       function loadWishlist(text, name) {
         var parsed = parseWishlist(text);
         if (!parsed.length) {
-          el("error").style.display = "block";
-          el("error").textContent = "Could not find rows with a city column.";
+          showError("Could not find rows with a city column.");
           return;
         }
-        el("error").style.display = "none";
+        clearError();
         currentFileName = name || "uploaded wishlist";
         wishes = parsed;
         renderAll();
       }
+      function showError(message) {
+        el("error").style.display = "block";
+        el("error").textContent = message;
+      }
+      function clearError() {
+        el("error").style.display = "none";
+        el("error").textContent = "";
+      }
+      function openAddForm() {
+        el("addPanel").hidden = false;
+        el("addCity").focus();
+      }
+      function closeAddForm() {
+        el("addPanel").hidden = true;
+        el("addForm").reset();
+        clearError();
+      }
+      function localCoordForCity(city) {
+        var key = normalizeCity(city);
+        return CITY_COORDS[key] || CITY_COORDS[key.replace(/\s/g, "")] || null;
+      }
+      async function geocodeCity(city) {
+        var local = localCoordForCity(city);
+        if (local) return local;
+        if (!window.fetch) return null;
+        var url = "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=" + encodeURIComponent(city);
+        var res = await fetch(url, { headers: { "Accept": "application/json" } });
+        if (!res.ok) return null;
+        var results = await res.json();
+        if (!results || !results.length) return null;
+        var lat = Number(results[0].lat);
+        var lon = Number(results[0].lon);
+        return isFinite(lat) && isFinite(lon) ? [lat, lon] : null;
+      }
+      function visitorSiteLinkForCity(city) {
+        return "https://www.google.com/search?q=" + encodeURIComponent(city + " official tourism visitor site");
+      }
+      function photoLinkForCity(city) {
+        var key = normalizeCity(city);
+        return CITY_IMAGES[key] || CITY_IMAGES[key.replace(/\s/g, "")] || FALLBACK_IMAGE;
+      }
+      async function enrichDestination(item) {
+        if (!item.link) item.link = visitorSiteLinkForCity(item.city);
+        if (!item.image) item.image = photoLinkForCity(item.city);
+      }
+      async function addDestination(event) {
+        event.preventDefault();
+        var submit = el("addSubmit");
+        var city = el("addCity").value.trim();
+        var item = {
+          city: city,
+          event: el("addEvent").value.trim(),
+          month: el("addMonth").value.trim(),
+          link: el("addLink").value.trim()
+        };
+        if (!item.city || !item.event) return;
+
+        submit.disabled = true;
+        submit.textContent = "Finding details...";
+        clearError();
+        try {
+          var coords = null;
+          try {
+            coords = await geocodeCity(item.city);
+          } catch (err) {}
+          await enrichDestination(item);
+          if (coords) {
+            item.lat = coords[0];
+            item.lon = coords[1];
+            CITY_COORDS[normalizeCity(item.city)] = coords;
+          }
+          wishes.push(item);
+          currentFileName = currentFileName === "built-in holiday sample" ? "custom browser list" : currentFileName;
+          renderAll();
+          closeAddForm();
+          if (coords) showPopup(wishes.length - 1);
+          else showError("Destination added, but the city location could not be found.");
+        } catch (err) {
+          wishes.push(item);
+          currentFileName = currentFileName === "built-in holiday sample" ? "custom browser list" : currentFileName;
+          renderAll();
+          closeAddForm();
+          showError("Destination added, but the location lookup is unavailable right now.");
+        } finally {
+          submit.disabled = false;
+          submit.textContent = "Create city";
+        }
+      }
+      function deleteDestination(index) {
+        if (index < 0 || index >= wishes.length) return;
+        wishes.splice(index, 1);
+        if (currentFileName === "built-in holiday sample") currentFileName = "custom browser list";
+        renderAll();
+      }
       window.openFilePicker = function () { el("fileInput").click(); };
+      window.openAddForm = openAddForm;
+      window.closeAddForm = closeAddForm;
+      window.deleteDestination = deleteDestination;
       window.handleWishlistFile = function (file) {
         if (!file) return;
         var reader = new FileReader();
@@ -472,6 +715,7 @@
       el("theme").onclick = function () {
         document.documentElement.setAttribute("data-theme", document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light");
       };
+      el("addForm").addEventListener("submit", addDestination);
       loadMap();
     })();
   </script>
